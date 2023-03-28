@@ -9,12 +9,10 @@ class SearchAdsAPI:
     def __init__(
         self,
         org_id,
-        pem,
         key,
-        client_id=None,
-        team_id=None,
-        key_id=None,
-        certificates_dir_path="certs/",
+        client_id,
+        team_id,
+        key_id,
         api_version="v4",
         session=None,
         verbose=False,
@@ -23,10 +21,8 @@ class SearchAdsAPI:
         Init API instance
         """
         self.org_id = org_id
-        self.pem = pem
-        self.key = key
+        self.key = key.replace("^", "\n")
         self.session = session
-        self.path = certificates_dir_path
         self.verbose = verbose
         if key_id is None:
             self.api_version = "v3"
@@ -58,12 +54,6 @@ class SearchAdsAPI:
             payload["iat"] = issued_at_timestamp
             payload["exp"] = expiration_timestamp
             payload["iss"] = self.team_id
-
-            # Path to signed private key.
-            KEY_FILE = key
-
-            with open(KEY_FILE, "r") as key_file:
-                key = "".join(key_file.readlines())
 
             client_secret = jwt.encode(
                 payload=payload, headers=headers, algorithm=alg, key=key
@@ -120,16 +110,12 @@ class SearchAdsAPI:
                 caller = requests
             else:
                 caller = self.session
-            # find the certicates path
-            pem = self.path + self.pem
-            key = self.path + self.key
+
+            key = self.key
 
             kwargs = {
                 "headers": headers,
             }
-            # if v3 is being used
-            if self.client_id is None:
-                kwargs["cert"] = (pem, key)
             if json_data:
                 kwargs["json"] = json_data
             kwargs["params"] = dict()
@@ -158,7 +144,6 @@ class SearchAdsAPI:
                 req = caller.put(url, **kwargs)
             elif method == "delete" or method == "DELETE":
                 req = caller.delete(url, **kwargs)
-            
             if self.verbose:
                 print(req.status_code)
                 print(req.url)
@@ -349,7 +334,7 @@ class SearchAdsAPI:
         """
         Fetches all assigned budget orders for an organization.
         """
-        res = self.api_call(f"budgetorders", method="GET")["data"]
+        res = self.api_call("budgetorders", method="GET")["data"]
         return res
 
     # Adgroup Methods
@@ -442,12 +427,7 @@ class SearchAdsAPI:
         """
         dimensions = {}
         if (
-            gender is not None
-            or device_class is not None
-            or day_part is not None
-            or adminArea is not None
-            or locality is not None
-            or appDownloaders is not None
+            gender is not None or device_class is not None or day_part is not None or adminArea is not None or locality is not None or appDownloaders is not None
         ):
             dimensions = {
                 "age": {"included": age},
@@ -630,12 +610,7 @@ class SearchAdsAPI:
         """
         dimensions = None
         if (
-            gender is not None
-            or device_class is not None
-            or day_part is not None
-            or adminArea is not None
-            or locality is not None
-            or appDownloaders is not None
+            gender is not None or device_class is not None or day_part is not None or adminArea is not None or locality is not None or appDownloaders is not None
         ):
             dimensions = {
                 "age": {"included": age},
@@ -843,8 +818,8 @@ class SearchAdsAPI:
             f"campaigns/{campaign_id}/adgroups/{adgroup_id}/targetingkeywords/delete/bulk",
             method="POST",
         )
-        return res   
-     
+        return res
+
     # Campaign Negative Keyword Methods
 
     def add_campaign_negative_keywords(self, campaign_id, keywords):
@@ -909,7 +884,7 @@ class SearchAdsAPI:
             method="POST",
         )
         return res
-    
+
     def get_campaign_negative_keyword(self, campaign_id, negative_keyword_id):
         """
         Gets a campaign negative keyword.
@@ -1042,7 +1017,7 @@ class SearchAdsAPI:
             method="POST",
         )
         return res
-    
+
     def get_adgroup_negative_keyword(
         self, campaign_id, adgroup_id, negative_keyword_id
     ):
@@ -1107,7 +1082,7 @@ class SearchAdsAPI:
         )
         return res
 
-    ## Creativeset Methods ##
+    # Creativeset Methods #
 
     def get_creativesets_assets(self, adam_id, countries_or_regions, assets_gen_ids=[]):
         """
@@ -1901,7 +1876,7 @@ class SearchAdsAPI:
     ):
         """
         Obtain a report ID.
-        
+
         The date range of the report request. A date range is required only when using WEEKLY granularity.
         dateRange Possible values: LAST_WEEK, LAST_2_WEEKS, LAST_4_WEEKS
         granularity Possible values: DAILY, WEEKLY
@@ -1941,16 +1916,16 @@ class SearchAdsAPI:
             f"custom-reports/{report_id}/", method="GET"
         )
         return res
-    
+
     def get_all_impression_share_reports(self, field="creationTime", limit=20, offset=0, sort_order="DESCENDING"):
         """
         Returns all Impression Share reports containing metrics and metadata.
         """
         data = {
-            "offset": offset, "limit": limit, "field": field, "sortOrder": sort_order 
+            "offset": offset, "limit": limit, "field": field, "sortOrder": sort_order
         }
         res = self.api_call(
-            f"custom-reports", params=data, method="GET"
+            "custom-reports", params=data, method="GET"
         )
         return res
 
@@ -1967,8 +1942,8 @@ class SearchAdsAPI:
         return_grand_totals,
         offset,
         limit,
-        date_range = None, # only for the impression share report
-        name = None, # only for the impression share report
+        date_range=None,  # only for the impression share report
+        name=None,  # only for the impression share report
         granularity=None,
         campaignId=None,
         adgroupId=None,
@@ -1989,6 +1964,9 @@ class SearchAdsAPI:
             if return_grand_totals is True or return_row_totals is True:
                 print("return_grand_totals and return_row_totals must be False")
                 return None
+        no_metrics_str = str(no_metrics).lower() if isinstance(no_metrics, bool) else no_metrics
+        return_row_totals_str = str(return_row_totals).lower() if isinstance(return_row_totals, bool) else return_row_totals
+        return_grand_totals_str = str(return_grand_totals).lower() if isinstance(return_grand_totals, bool) else return_grand_totals
         while True:
             # Use this data schema for all reports except of impression share
             data = {
@@ -2000,15 +1978,15 @@ class SearchAdsAPI:
                     "pagination": {"offset": offset, "limit": li},
                 },
                 "timeZone": "UTC",
-                "returnRecordsWithNoMetrics": no_metrics,
-                "returnRowTotals": return_row_totals,
-                "returnGrandTotals": return_grand_totals,
+                "returnRecordsWithNoMetrics": no_metrics_str,
+                "returnRowTotals": return_row_totals_str,
+                "returnGrandTotals": return_grand_totals_str,
             }
             if granularity is not None:
                 data["granularity"] = granularity
             if group_by is not None:
                 data["groupBy"] = [group_by]
-            
+
             if data_type == "campaigns":
                 res = self.api_call("reports/campaigns", json_data=data, method="POST")
             elif data_type == "adgroups":
@@ -2056,16 +2034,15 @@ class SearchAdsAPI:
                     "name": name,
                     "startTime": start_date,
                     "endTime": end_date,
-                    "granularity": granularity, 
-                    
+                    "granularity": granularity,
                 }
                 if len(conditions) > 0:
-                    data["selector"] = {"conditions" :conditions}
+                    data["selector"] = {"conditions": conditions}
                 if date_range is not None:
                     data["dateRange"] = date_range
 
                 res = self.api_call(
-                    f"custom-reports",
+                    "custom-reports",
                     json_data=data,
                     method="POST",
                 )
@@ -2090,8 +2067,8 @@ class SearchAdsAPI:
             if res_len == limit or res_len >= res["pagination"]["totalResults"]:
                 break
         if return_grand_totals:
-            return row, grandTotals
-        return row
+            return res, grandTotals
+        return res
 
     # Geosearch Methods
     def geo_search(
